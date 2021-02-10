@@ -1,0 +1,70 @@
+blueprint:
+  name: e1810tradfri
+  domain: automation
+  input:
+    mqtt_topic:
+      selector:
+        text:
+
+    up_down_input:
+      selector:
+        entity:
+          device_class: input_number
+
+    left_right_input:
+      selector:
+        entity:
+          device_class: input_number
+
+
+variables:
+    mqtt_topic: !input mqtt_topic
+    up_down_input: !input up_down_input
+    left_right_input: !input left_right_input
+
+trigger:
+  platform: mqtt
+  topic: !input mqtt_topic
+
+
+mode: restart
+action:
+  - event: CONTROLLER_EVENT
+    event_data:
+      name: "{{ mqtt_topic }}"
+      action: "{{ trigger.payload }}"
+
+  - choose:
+      - conditions: "{{ trigger.payload  == 'brightness_up_click' }}"
+        sequence:
+          - service: input_number.increment
+            data:
+              entity_id: "{{ up_down_input }}"
+
+      - conditions: "{{ trigger.payload  == 'brightness_up_hold' }}"
+        sequence:
+          - repeat:
+              while: "{{ true }}"
+              sequence:
+                - service: input_number.increment
+                  data:
+                    entity_id: "{{ up_down_input }}"
+                - delay: 0.2
+
+      - conditions: "{{ trigger.payload  == 'brightness_down_click' }}"
+        sequence:
+          - service: input_number.decrement
+            data:
+              entity_id: "{{ up_down_input }}"
+
+      - conditions: "{{ trigger.payload  == 'brightness_down_hold' }}"
+        sequence:
+          - repeat:
+              while: "{{ true }}"
+              sequence:
+                - service: input_number.decrement
+                  data:
+                    entity_id: "{{ up_down_input }}"
+                - delay: 0.2
+    default: []
+

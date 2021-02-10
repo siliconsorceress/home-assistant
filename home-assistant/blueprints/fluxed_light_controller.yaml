@@ -1,0 +1,179 @@
+blueprint:
+  name: basic_light_controller
+  domain: automation
+  input:
+    brightness:
+      selector:
+        entity:
+          domain: input_number
+    temperature:
+      selector:
+        entity:
+          domain: input_number
+    target:
+      selector:
+        entity:
+          domain: light
+    controller_name:
+      selector:
+        text:
+
+mode: restart
+variables:
+  brightness: !input brightness
+  temperature: !input temperature
+  target: !input target
+
+trigger:
+  - platform: state
+    entity_id: !input brightness
+  - platform: state
+    entity_id: !input temperature
+  - platform: event
+    event_type: CONTROLLER_EVENT
+    event_data:
+      name: !input controller_name
+action:
+  - variables:
+      step: 16
+      max_fade_time: 4
+      kelvin: "{{ states(temperature) | int }}"
+      first_target: |
+        {%- set entity_id = state_attr(target,'entity_id') -%}
+        {%- if entity_id -%}
+        {{- entity_id[0] -}}
+        {%- else -%}
+        {{- target -}}
+        {%- endif -%}
+  - variables:
+      fade_delay: "{{ 1/(256/max_fade_time) }}"
+
+
+
+
+  - choose:
+      - alias: "toggle off"
+        conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
+          - condition: template
+            value_template: "{{ trigger.event.data.action == 'toggle' }}"
+          - condition:  template
+            value_template: "{{ states(target) == 'on' }}"
+        sequence:
+          - service: light.turn_off
+            data_template:
+              transition: 0.5
+              entity_id: "{{ target }}"
+
+      - conditions:
+        - condition: or
+          conditions:
+            - condition: and # if input state changes
+              conditions:
+                - condition: template
+                  value_template: "{{ trigger.platform == 'state' }}"
+                - condition:  template
+                  value_template: "{{ states(target) == 'on' }}"
+            #
+            - condition: and # if light is being toggled on
+              conditions:
+                - condition: template
+                  value_template: "{{ trigger.platform == 'event' }}"
+                - condition: template
+                  value_template: "{{ trigger.event.data.action == 'toggle' }}"
+                - condition:  template
+                  value_template: "{{ states(target) == 'off' }}"
+            #
+            - condition: and #if the automation is being triggered manually
+              conditions:
+                - condition: template
+                  value_template: "{{ not trigger.platform }}"
+        sequence:
+          - service: light.turn_on
+            data:
+              entity_id: "{{ target }}"
+              transition: 0.5
+              brightness: "{{ states(brightness) | int }}"
+              kelvin: "{{ kelvin }}"
+
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
+          - condition: template
+            value_template: "{{ trigger.event.data.action == 'brightness_down_click' }}"
+          - condition:  template
+            value_template: "{{ states(target) == 'on' }}"
+        sequence:
+          - service: input_number.set_value
+            data:
+              entity_id: "{{ brightness }}"
+              value: "{{ state_attr(first_target,'brightness') - step }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
+          - condition: template
+            value_template: "{{ trigger.event.data.action == 'brightness_up_click' }}"
+          - condition:  template
+            value_template: "{{ states(target) == 'on' }}"
+        sequence:
+          - service: input_number.set_value
+            data:
+              entity_id: "{{ brightness }}"
+              value: "{{ state_attr(first_target,'brightness') + step }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
+          - condition: template
+            value_template: "{{ trigger.event.data.action == 'brightness_up_hold' }}"
+        sequence:
+          - repeat:
+              while: "{{ state_attr(first_target,'brightness') < 255 }}"
+              sequence:
+              - variables:
+                  cur_brightness: "{{ state_attr(first_target,'brightness') }}"
+              - service: light.turn_on
+                data:
+                  entity_id: "{{ target }}"
+                  brightness: "{{ cur_brightness + step }}"
+                  kelvin: "{{ kelvin }}"
+                  transition: "{{ step * fade_delay }}"
+              - wait_template: "{{ state_attr(first_target,'brightness')  == cur_brightness + step }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
+          - condition: template
+            value_template: "{{ trigger.event.data.action == 'brightness_down_hold' }}"
+        sequence:
+          - repeat:
+              while: "{{ state_attr(first_target,'brightness') > 0 }}"
+              sequence:
+              - variables:
+                  cur_brightness: "{{ state_attr(first_target,'brightness') }}"
+              - service: light.turn_on
+                data:
+                  entity_id: "{{ target }}"
+                  brightness: "{{ cur_brightness - step }}"
+                  kelvin: "{{ kelvin }}"
+                  transition: "{{ step * fade_delay }}"
+              - wait_template: "{{ state_attr(first_target,'brightness') == cur_brightness - step }}"
+
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
+          - condition: template
+            value_template: "{{ trigger.event.data.action | regex_match('^brightness_\\w+_release$') }}"
+        sequence:
+          - delay: "{{ step * 2 * fade_delay }}"
+
+          - service: input_number.set_value
+            data:
+              entity_id: "{{ brightness }}"
+              value: "{{ state_attr(first_target,'brightness') }}"
+
+

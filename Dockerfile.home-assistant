@@ -1,0 +1,10 @@
+FROM homeassistant/home-assistant:2021.4.6
+
+COPY home-assistant/blueprints/ /usr/src/home-assistant-blueprints/
+
+RUN \ 
+mkdir /usr/src/custom_components && \
+curl https://codeload.github.com/snarky-snark/home-assistant-variables/tar.gz/refs/tags/v0.12.0 | \
+tar vzx --strip-components=2  \
+ -C /usr/src/custom_components \
+ "home-assistant-variables-0.12.0/custom_components/var"

@@ -1,0 +1,87 @@
+blueprint:
+  name: simple fluxor
+  domain: automation
+  input:
+    start_time:
+      name: Start Time
+      description: Start time for flux period
+      selector:
+        text:
+    stop_time:
+      name: Stop Time
+      description: Stop time for flux period
+      selector:
+        text:
+    start_k:
+      name: Start Kelvin
+      description: Initial Flux Temperature
+      selector:
+        number:
+          min: 2000
+          max: 6000
+          mode: slider
+    stop_k:
+      name: Stop Kelvin
+      description: Final Flux Temperature
+      selector:
+        number:
+          min: 2000
+          max: 6000
+          mode: slider
+    entity_id:
+      name: Entity
+      description: Device to flux
+      selector:
+              device:
+                entity:
+                  domain: input_number
+
+mode: restart
+
+trigger:
+- platform: time_pattern
+  minutes: "*"
+
+variables:
+  start_time: !input start_time
+  stop_time: !input stop_time
+  start_k: !input start_k
+  stop_k: !input stop_k
+  entity_id: !input entity_id
+
+action:
+  - condition: time
+    after: !input start_time
+    before: !input stop_time
+
+  - service: input_number.set_value
+    data_template:
+      entity_id: "{{ entity_id }}"
+      value: >-
+          {%- macro hm_to_timestamp(str_time) -%}
+          {%- set gmtoffset = as_timestamp(now())|timestamp_custom("%z") -%}
+          {{- strptime( "{}-{}-{}T{}{}".format(
+                now().year,
+                now().month,
+                now().day,
+                str_time,
+                 "-0700"), "%Y-%m-%dT%H:%M:%S%z" ) | as_timestamp | int  -}}
+          {%- endmacro -%}
+
+            {%- macro timefun(start, stop) -%}
+            {%- set window = (( now()|as_timestamp|int) - (hm_to_timestamp(start)|int)) /
+                   ((hm_to_timestamp(stop)|int)-(hm_to_timestamp(start)|int))  -%}
+            {%- if window < 0 -%}
+            0
+            {%- elif window > 1 -%}
+            1
+            {%- else -%}
+            {{- window-}}
+            {%- endif -%}
+            {%- endmacro -%}
+
+            {%- macro kfade(a,b,c ) -%}
+            {{-   ( (b|int)-(a|int) )*(c|float) + (a|int) -}}
+            {%- endmacro %}
+            {{- kfade(start_k,stop_k, timefun(start_time,stop_time)) -}}
+

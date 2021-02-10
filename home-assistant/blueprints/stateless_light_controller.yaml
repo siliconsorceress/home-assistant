@@ -1,0 +1,58 @@
+blueprint:
+  name: basic_light_controller
+  domain: automation
+  input:
+    target:
+      selector:
+        entity:
+          domain: light
+    controller_name:
+      selector:
+        text:
+
+mode: restart
+variables:
+  target: !input target
+
+trigger:
+  - platform: event
+    event_type: CONTROLLER_EVENT
+    event_data:
+      name: !input controller_name
+action:
+  - choose:
+      - alias: "toggle off"
+        conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
+          - condition: template
+            value_template: "{{ trigger.event.data.action == 'toggle' }}"
+          - condition:  template
+            value_template: "{{ states(target) == 'on' }}"
+        sequence:
+          - service: light.turn_off
+            data_template:
+              transition: 0.5
+              entity_id: "{{ target }}"
+
+      - conditions:
+        - condition: or
+          conditions:
+            - condition: and # if light is being toggled on
+              conditions:
+                - condition: template
+                  value_template: "{{ trigger.platform == 'event' }}"
+                - condition: template
+                  value_template: "{{ trigger.event.data.action == 'toggle' }}"
+                - condition:  template
+                  value_template: "{{ states(target) == 'off' }}"
+            #
+            - condition: and #if the automation is being triggered manually
+              conditions:
+                - condition: template
+                  value_template: "{{ trigger.platform == 'None' }}"
+        sequence:
+          - service: light.turn_on
+            data:
+              entity_id: "{{ target }}"
+              transition: 0.5

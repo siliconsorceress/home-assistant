@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+. port-forward-mqtt
+
+if [ "${1}" == "true" ]; then
+  VALUE="true"
+else
+  VALUE="false"
+fi
+
+mosquitto_pub -t zigbee2mqtt/bridge/request/permit_join -m "{\"value\": \"${VALUE}\"}"

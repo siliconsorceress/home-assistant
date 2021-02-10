@@ -1,0 +1,2 @@
+coproc (kubectl port-forward -n iot deploy/mosquitto 1883)
+sleep 2

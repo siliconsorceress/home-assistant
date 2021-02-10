@@ -1,0 +1,412 @@
+configuration:
+    # Configure a default setup of Home Assistant (frontend, api, etc)
+    default_config:
+
+    logger:
+      default: info
+
+    tts:
+      - platform: google_translate
+
+    group:
+      livingroom_deco:
+        entities:
+          - switch.uva
+          - switch.planet
+      livingroom:
+        all: true
+        entities:
+          - light.livingroom_right
+          - light.livingroom_left
+      bathroom:
+        all: true
+        entities:
+          - light.bathroom_right
+          - light.bathroom_left
+
+
+    ########## Automations
+    #
+    #
+
+
+    automation static:
+
+      - alias: fluxor359_400
+        id: fluxor359_400
+        use_blueprint:
+          path: local/fluxor.yaml
+          input:
+            start_time: '3:59'
+            stop_time:  '4:00'
+            start_k: 2700
+            stop_k: 5400
+            entity_id: input_number.main_fluxor
+
+      - alias: fluxor400_700
+        id: fluxor400_700
+        use_blueprint:
+          path: local/fluxor.yaml
+          input:
+            start_time: '04:00'
+            stop_time:  '07:00'
+            start_k: 5400
+            stop_k: 3500
+            entity_id: input_number.main_fluxor
+
+      - alias: fluxor1600_1900
+        id: fluxor1600_1900
+        use_blueprint:
+          path: local/fluxor.yaml
+          input:
+            start_time: '16:00'
+            stop_time:  '19:00'
+            start_k: 3500
+            stop_k: 2700
+            entity_id: input_number.main_fluxor
+
+      - alias: bathroom_metautomation
+        id: bathroom_metautomation
+        use_blueprint:
+          path: local/metautomation.yaml
+          input:
+            target_entity: group.bathroom
+            sensor_entity: sensor.bathroom_remote
+            fluxor_entity: automation.fluxor
+            var_entity: var.bathroom_mode
+            modes:
+              - turn_off: []
+                turn_on: ["bathroom_timer"]
+              - turn_off: ["bathroom_timer"]
+                turn_on: []
+
+      - alias: bathroom_fluxed
+        id: bathroom_fluxed
+        use_blueprint:
+          path: local/fluxed_light_controller.yaml
+          input:
+            controller_name: zigbee2mqtt/bathroom_remote/action
+            brightness: input_number.bathroom_brightness
+            temperature: input_number.main_fluxor
+            target: group.bathroom
+
+      - alias: bathroom_timer
+        id: bathroom_timer
+        use_blueprint:
+          path: local/timed_light_controller.yaml
+          input:
+            controller_name: zigbee2mqtt/bathroom_remote/action
+            target: group.bathroom
+            time: input_number.bathroom_timer
+
+      - alias: bathroom_nightlight
+        id: bathroom_nightlight
+        use_blueprint:
+          path: local/nightlight_controller.yaml
+          input:
+            target: group.bathroom
+
+      - alias: bathroom_remote
+        id: bathroom_remote
+        use_blueprint:
+          path: local/e1810tradfri.yaml
+          input:
+            mqtt_topic: zigbee2mqtt/bathroom_remote/action
+            up_down_input: Null
+            left_right_input: Null
+
+      - alias: livingroom_fluxed
+        id: livingroom_fluxed
+        use_blueprint:
+          path: local/fluxed_light_controller.yaml
+          input:
+            controller_name: zigbee2mqtt/livingroom_remote/action
+            brightness: input_number.livingroom_brightness
+            temperature: input_number.main_fluxor
+            target: group.livingroom
+
+      - alias: livingroom_stateless
+        id: livingroom_stateless
+        use_blueprint:
+          path: local/stateless_light_controller.yaml
+          input:
+            controller_name: zigbee2mqtt/livingroom_remote/action
+            brightness: input_number.livingroom_brightness
+            temperature: Null
+            target: group.livingroom
+
+      - alias: livingroom_remote
+        id: livingroom_remote
+        use_blueprint:
+          path: local/e1810tradfri.yaml
+          input:
+            mqtt_topic: zigbee2mqtt/livingroom_remote/action
+            up_down_input: Null
+            left_right_input: Null
+
+      - alias: livingroom_metautomation
+        id: livingroom_metautomation
+        use_blueprint:
+          path: local/metautomation.yaml
+          input:
+            target_entity: group.livingroom
+            sensor_entity: sensor.livingroom_remote
+            fluxor_entity: automation.fluxor
+            var_entity: var.livingroom_mode
+            modes:
+              - turn_off:
+                 - livingroom_blue
+                 - livingroom_colorcycle
+                 - livingroom_stateless
+                 - livingroom_deco
+                turn_on:
+                 - livingroom_fluxed
+
+              - turn_off:
+                 - livingroom_blue
+                 - livingroom_colorcycle
+                 - livingroom_stateless
+                turn_on:
+                 - livingroom_fluxed
+                 - livingroom_deco
+
+              - turn_off:
+                 - livingroom_fluxed
+                 - livingroom_colorcycle
+                 - livingroom_deco
+                turn_on:
+                 - livingroom_stateless
+                 - livingroom_blue
+
+              - turn_off:
+                 - livingroom_blue
+                 - livingroom_fluxed
+                 - livingroom_deco
+                turn_on:
+                 - livingroom_stateless
+                 - livingroom_colorcycle
+
+
+      - alias: livingroom_deco
+        id: livingroom_deco
+        trigger:
+          - platform: state
+            entity_id: group.livingroom
+          - platform: time_pattern
+            minutes: "*"
+        action:
+          - choose:
+            - conditions:
+                - condition: time
+                  before: 22:00
+                - condition: template
+                  value_template: "{{ state_attr('sun.sun', 'elevation') < 3 }}"
+                - condition: state
+                  entity_id: group.livingroom
+                  state: "on"
+              sequence:
+                - service: switch.turn_on
+                  entity_id: group.livingroom_deco
+            default:
+              - service: switch.turn_off
+                entity_id: group.livingroom_deco
+
+      - alias: livingroom_blue
+        id: livingroom_blue
+        trigger: []
+        action:
+          - service: switch.turn_off
+            entity_id: switch.uvb
+
+          - service: switch.turn_on
+            entity_id: group.livingroom_deco
+
+          - service: light.turn_on
+            data:
+              entity_id: group.livingroom
+              transition: 1
+              hs_color: [240, 100]
+              brightness: 255
+
+      - alias: livingroom_colorcycle
+        id: livingroom_colorcycle
+        trigger: []
+        action:
+          - service: switch.turn_off
+            entity_id: switch.uvb
+
+          - service: switch.turn_on
+            entity_id: group.livingroom_deco
+
+          - service: lifx.effect_colorloop
+            data:
+              brightness: 180
+              period: 20
+              change: 30
+              spread: 120
+            entity_id: group.livingroom
+        mode: single
+
+    ########## lifx lights
+    lifx:
+      light:
+        - broadcast: 10.64.36.64 #LR Right
+        - broadcast: 10.64.36.65 #LR Left
+        - broadcast: 10.64.36.66 #Bathroom Right
+        - broadcast: 10.64.36.67 #Bathroom Left
+
+    tplink:
+      discovery: false
+      switch:
+        - host: 10.64.36.68
+        - host: 10.64.36.69
+        - host: 10.64.36.70
+        - host: 10.64.36.71
+
+    ########## variables
+    input_number:
+      main_fluxor:
+        name: livingroom temperature
+        mode: slider
+        min: 2700
+        max: 6000
+      livingroom_brightness:
+        name: livingroom brightness
+        mode: slider
+        initial: 64
+        min: 0
+        max: 255
+      bathroom_brightness:
+        name: bathroom brightness
+        mode: slider
+        initial: 32
+        min: 0
+        max: 255
+      bathroom_timer:
+        name: bathroom timer
+        mode: slider
+        initial: 15
+        min: 5
+        max: 60
+        step: 5
+
+
+
+    var:
+      livingroom_mode:
+        initial_value: 1
+      bathroom_mode:
+        initial_value: 0
+
+
+    #### MQTT Sensors
+    sensor:
+      - platform: "mqtt"
+        name: "livingroom_remote"
+        state_topic: "zigbee2mqtt/livingroom_remote"
+        value_template: "{{ value_json.action }}"
+        icon: "mdi:gesture-double-tap"
+      - platform: "mqtt"
+        name: "bathroom_remote"
+        state_topic: "zigbee2mqtt/bathroom_remote"
+        value_template: "{{ value_json.action }}"
+        icon: "mdi:gesture-double-tap"
+
+    ########## System Config
+    homeassistant:
+      name: "The Witch's Spire"
+      latitude: 0
+      longitude: 0
+      elevation: 80
+      unit_system: metric
+      time_zone: America/Vancouver
+      external_url: "https://iot.siliconsorceress.com/"
+      legacy_templates: false
+
+    ########## MQTT
+    mqtt:
+      discovery: true
+      broker: mosquitto
+      # birth_message and will_message is not required anymore for Home Assistant 0.113 >=
+      birth_message:
+        topic: 'homeassistant/status'
+        payload: 'online'
+      will_message:
+        topic: 'homeassistant/status'
+        payload: 'offline'
+
+##########  Home Assistant Chart Configuration
+home-assistant:
+  common:
+    initContainers:
+    - name: init-config
+      image: busybox:latest
+      command:
+        - sh
+        - -xc
+        - |
+          if [ ! -f /config/.storage/onboarding ]; then
+            install -D /configmap/onboarding /config/.storage/onboarding
+          fi
+          if [ ! -e /config/blueprints/automation/local ]; then
+            ln -s ../../../usr/src/home-assistant-blueprints /config/blueprints/automation/local
+          fi
+          touch /config/automations.yaml
+          touch /config/scenes.yaml
+          touch /config/groups.yaml
+          touch /config/scripts.yaml
+
+      volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: configmap-overlay
+            mountPath: /configmap
+
+  hostNetwork: false
+
+  # Enable passing thru a USB device to Home Assistant
+  securityContext:
+    privileged: false
+
+  # Allow access a Git repository by passing in a private SSH key
+  git:
+    # Raw SSH private key
+    deployKey: ""
+    # Base64-encoded SSH private key. When both variables are set, the raw SSH key takes precedence.
+    deployKeyBase64: ""
+
+  # Enable a prometheus-operator servicemonitor
+  prometheus:
+    serviceMonitor:
+      enabled: true
+      # interval: 1m
+      # additionalLabels: {}
+
+  persistence:
+    config:
+      enabled: true
+      emptyDir: false
+      ## Persistent Volume Storage Class
+      ## If defined, storageClassName: <storageClass>
+      ## If set to "-", storageClassName: "", which disables dynamic provisioning
+      ## If undefined (the default) or set to null, no storageClassName spec is
+      ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+      ##   GKE, AWS & OpenStack)
+      # storageClass: "-"
+      # accessMode: ReadWriteOnce
+      # size: 1Gi
+      ## Do not delete the pvc upon helm uninstall
+      # skipuninstall: false
+      existingClaim: home-assistant
+
+       # Path to your Z-Wave / Zigbee device in the container
+  additionalVolumeMounts:
+      - name: configmap-overlay
+        mountPath: "/config/configuration.yaml"
+        subPath: configuration.yaml
+  additionalVolumes:
+      - name: configmap-overlay
+        configMap:
+          name: home-assistant
+
+

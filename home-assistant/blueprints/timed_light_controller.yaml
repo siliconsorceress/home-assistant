@@ -1,0 +1,61 @@
+blueprint:
+  name: timed_light_controller
+  domain: automation
+  input:
+    time:
+      selector:
+        entity:
+          domain: input_number
+    target:
+      selector:
+        entity:
+          domain: light
+    controller_name:
+      selector:
+        text:
+
+mode: restart
+
+trigger:
+  - platform: state
+    entity_id: !input target
+    from: "off"
+    to: "on"
+  - platform: event
+    event_type: CONTROLLER_EVENT
+    event_data:
+      name: !input controller_name
+      action: toggle_hold
+variables:
+  time: !input time
+  target: !input target
+action:
+  - choose:
+      - alias: "timed_off"
+        conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'state' }}"
+        sequence:
+          - delay:
+              minutes: "{{ states(time) }}"
+          - service: light.turn_off
+            data_template:
+              transition: 0.5
+              entity_id: "{{ target }}"
+
+      - alias: "deactivate timer"
+        conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'event' }}"
+          - condition: template
+            value_template: "{{ states(target) == 'on' }}"
+        sequence:
+          - service: lifx.effect_pulse
+            data:
+              mode: breathe
+              cycles: 1
+              hs_color: [ 120, 100]
+              period: 0.4
+              power_on: false
+            target:
+              entity_id: "{{ target }}"

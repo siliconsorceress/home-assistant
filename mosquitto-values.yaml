@@ -1,0 +1,10 @@
+
+
+service:
+  main:
+    type: LoadBalancer
+    annotations: 
+      networking.gke.io/load-balancer-type: "Internal"
+    loadBalancerIP: 10.162.15.229
+    loadBalancerSourceRanges: 
+      - "10.64.36.0/24"
