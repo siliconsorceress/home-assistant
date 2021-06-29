@@ -2,76 +2,72 @@ blueprint:
   name: metautomation
   domain: automation
   input:
-    sensor_entity:
-      selector:
-        entity:
-          domain: sensor
     target_entity:
       selector:
         entity:
           domain: light
-    fluxor_entity:
+    mode_entity:
       selector:
         entity:
-          domain: automation
-    var_entity:
-      selector:
-        entity:
-          integration: var
+          integration: input_number
     modes:
       selector:
         object:
-
+    controller_name:
+      selector:
+        text:
 
 variables:
   target_entity: !input target_entity
-  var_entity: !input var_entity
+  mode_entity: !input mode_entity
   modes: !input modes
 
 trigger:
   - platform: state
-    entity_id: !input sensor_entity
-    to: arrow_right_click
-  - platform: state
-    entity_id: !input sensor_entity
-    to: arrow_left_click
-
+    entity_id: !input mode_entity
+  - platform: event
+    event_type: CONTROLLER_EVENT
+    event_data:
+      name: !input controller_name
+      action: arrow_left_click
+  - platform: event
+    event_type: CONTROLLER_EVENT
+    event_data:
+      name: !input controller_name
+      action: arrow_right_click
 
 action:
   - choose:
     - alias: "scene right"
-      conditions: "{{ trigger.to_state.state == 'arrow_right_click' }}"
+      conditions:
+        - condition: template
+          value_template: "{{ trigger.platform == 'event' }}"
+        - condition: template
+          value_template: "{{ trigger.event.data.action == 'arrow_right_click' }}"
+        - condition:  template
+          value_template: "{{ states(target_entity) == 'on' }}"
       sequence:
-        - service: var.set
+        - service: input_number.increment
           data:
-            entity_id: !input var_entity
-            value_template: >-
-              {%- set mode=(states(var_entity)|int) -%}
-              {%- set modes_length=modes|length -%}
-              {%- if mode >= modes_length %}
-              modes_length
-              {%- else -%}
-              {{ (states(var_entity)|int)+1}}
-              {%- endif -%}
-    #
+            entity_id: !input mode_entity
+
     - alias: "scene left"
-      conditions: "{{ trigger.to_state.state == 'arrow_left_click' }}"
+      conditions:
+        - condition: template
+          value_template: "{{ trigger.platform == 'event' }}"
+        - condition: template
+          value_template: "{{ trigger.event.data.action == 'arrow_left_click' }}"
+        - condition:  template
+          value_template: "{{ states(target_entity) == 'on' }}"
       sequence:
-        - service: var.set
+        - service: input_number.decrement
           data:
-            entity_id: !input var_entity
-            value_template: >-
-              {%- set mode=(states(var_entity)|int) -%}
-              {%- if mode < 1 -%}
-              0
-              {%- else -%}
-              {{ (states(var_entity)|int)-1}}
-              {%- endif -%}
+            entity_id: !input mode_entity
   #
   - service: lifx.effect_pulse
     data:
       mode: breathe
-      cycles: "{{ (states(var_entity)|int) + 1 }}"
+      cycles: "{{ (states(mode_entity)|int) + 1 }}"
       hs_color: [ 120, 100]
       period: 0.4
       power_on: false
@@ -80,35 +76,35 @@ action:
   #
   - choose:
       - conditions: |
-                {%- set mode=(states(var_entity)|int) -%}
+                {%- set mode=(states(mode_entity)|int) -%}
                 {{- modes[mode]['turn_off'] | length > 0 -}}
         sequence:
           - repeat:
               count:  >-
-                {%- set mode=(states(var_entity)|int) -%}
+                {%- set mode=(states(mode_entity)|int) -%}
                 {{- modes[mode]['turn_off'] | length -}}
               sequence:
                 - service: automation.turn_off
                   data_template:
                     entity_id: >-
-                      {%- set mode=(states(var_entity)|int) -%}
+                      {%- set mode=(states(mode_entity)|int) -%}
                       automation.{{- modes[mode]['turn_off'][repeat.index-1] -}}
     default: []
   #
   - alias: wait for all the automations to turn off
     choose:
       - conditions: |
-                {%- set mode=(states(var_entity)|int) -%}
+                {%- set mode=(states(mode_entity)|int) -%}
                 {{- modes[mode]['turn_off'] | length > 0 -}}
         sequence:
           - repeat:
               count:  >-
-                {%- set mode=(states(var_entity)|int) -%}
+                {%- set mode=(states(mode_entity)|int) -%}
                 {{- modes[mode]['turn_off'] | length -}}
               sequence:
                 - variables:
                     automation_entity_id: >-
-                      {%- set mode=(states(var_entity)|int) -%}
+                      {%- set mode=(states(mode_entity)|int) -%}
                       automation.{{- modes[mode]['turn_off'][repeat.index-1] -}}
                 - alias: "wait for each automation to turn off"
                   repeat:
@@ -122,23 +118,23 @@ action:
   #
   - choose:
       - conditions: |
-                {%- set mode=(states(var_entity)|int) -%}
+                {%- set mode=(states(mode_entity)|int) -%}
                 {{- modes[mode]['turn_on'] | length > 0 -}}
         sequence:
           - repeat:
               count:  >-
-                {%- set mode=(states(var_entity)|int) -%}
+                {%- set mode=(states(mode_entity)|int) -%}
                 {{- modes[mode]['turn_on'] | length -}}
               sequence:
                 - service: automation.turn_on
                   data_template:
                     entity_id: >-
-                      {%- set mode=(states(var_entity)|int) -%}
+                      {%- set mode=(states(mode_entity)|int) -%}
                       automation.{{- modes[mode]['turn_on'][repeat.index-1] -}}
                 - service: automation.trigger
                   data_template:
                     entity_id: >-
-                      {%- set mode=(states(var_entity)|int) -%}
+                      {%- set mode=(states(mode_entity)|int) -%}
                       {%- set keys=modes[mode]|list -%}
                       automation.{{- modes[mode]['turn_on'][repeat.index-1] -}}
     default: []

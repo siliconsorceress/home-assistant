@@ -71,9 +71,8 @@ configuration:
           path: local/metautomation.yaml
           input:
             target_entity: group.bathroom
-            sensor_entity: sensor.bathroom_remote
-            fluxor_entity: automation.fluxor
-            var_entity: var.bathroom_mode
+            mode_entity: input_number.bathroom_mode
+            controller_name: zigbee2mqtt/bathroom_remote/action
             modes:
               - turn_off: []
                 turn_on: ["bathroom_timer"]
@@ -150,9 +149,8 @@ configuration:
           path: local/metautomation.yaml
           input:
             target_entity: group.livingroom
-            sensor_entity: sensor.livingroom_remote
-            fluxor_entity: automation.fluxor
-            var_entity: var.livingroom_mode
+            mode_entity: input_number.livingroom_mode
+            controller_name: zigbee2mqtt/livingroom_remote/action
             modes:
               - turn_off:
                  - livingroom_blue
@@ -270,12 +268,24 @@ configuration:
         mode: slider
         min: 2700
         max: 6000
+      livingroom_mode:
+        name: livingroom mode
+        mode: slider
+        initial: 1
+        min: 0
+        max: 3
       livingroom_brightness:
         name: livingroom brightness
         mode: slider
         initial: 64
         min: 0
         max: 255
+      bathroom_mode:
+        name: bathroom mode
+        mode: slider
+        initial: 0
+        min: 0
+        max: 1
       bathroom_brightness:
         name: bathroom brightness
         mode: slider
@@ -289,14 +299,6 @@ configuration:
         min: 5
         max: 60
         step: 5
-
-
-
-    var:
-      livingroom_mode:
-        initial_value: 1
-      bathroom_mode:
-        initial_value: 0
 
 
     #### MQTT Sensors
