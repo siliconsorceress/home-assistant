@@ -184,6 +184,44 @@ configuration:
                  - livingroom_stateless
                  - livingroom_colorcycle
 
+      - alias: bedroom_stateless
+        id: bedroom_stateless
+        use_blueprint:
+          path: local/stateless_light_controller.yaml
+          input:
+            controller_name: zigbee2mqtt/bedroom_remote/action
+            target: light.bedroom
+
+      - alias: bedroom_remote
+        id: bedroom_remote
+        use_blueprint:
+          path: local/e1810tradfri.yaml
+          input:
+            mqtt_topic: zigbee2mqtt/bedroom_remote/action
+            up_down_input: Null
+            left_right_input: Null
+
+
+      - alias: frontdoor_fluxed
+        id: frontdoor_fluxed
+        use_blueprint:
+          path: local/fluxed_light_controller.yaml
+          input:
+            controller_name: zigbee2mqtt/frontdoor_remote/action
+            brightness: input_number.frontdoor_brightness
+            temperature: input_number.main_fluxor
+            target: light.frontdoor
+
+      - alias: frontdoor_remote
+        id: frontdoor_remote
+        use_blueprint:
+          path: local/e1810tradfri.yaml
+          input:
+            mqtt_topic: zigbee2mqtt/frontdoor_remote/action
+            up_down_input: Null
+            left_right_input: Null
+
+
 
       - alias: livingroom_deco
         id: livingroom_deco
@@ -253,6 +291,7 @@ configuration:
         - broadcast: 10.64.36.66 #Bathroom Right
         - broadcast: 10.64.36.67 #Bathroom Left
         - broadcast: 10.64.36.72 #bedroom
+        - broadcast: 10.64.36.73 #frontdoor
 
     tplink:
       discovery: false
@@ -300,20 +339,78 @@ configuration:
         min: 5
         max: 60
         step: 5
-
+      frontdoor_brightness:
+        name: frontdoor brightness
+        mode: slider
+        initial: 32
+        min: 0
+        max: 255
 
     #### MQTT Sensors
     sensor:
       - platform: "mqtt"
         name: "livingroom_remote"
         state_topic: "zigbee2mqtt/livingroom_remote"
-        value_template: "{{ value_json.action }}"
-        icon: "mdi:gesture-double-tap"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        value_template: "{{ value_json.battery }}"
+        unit_of_measurement: "%"
+        device_class: "battery"
+      - platform: "mqtt"
+        name: "livingroom_remote"
+        state_topic: "zigbee2mqtt/livingroom_remote"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        value_template: "{{ value_json.linkquality }}"
+        unit_of_measurement: "lqi"
+        enabled_by_default: false
+        icon: "mdi:signal"
+
       - platform: "mqtt"
         name: "bathroom_remote"
         state_topic: "zigbee2mqtt/bathroom_remote"
-        value_template: "{{ value_json.action }}"
-        icon: "mdi:gesture-double-tap"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        value_template: "{{ value_json.battery }}"
+        unit_of_measurement: "%"
+        device_class: "battery"
+      - platform: "mqtt"
+        name: "bathroom_remote"
+        state_topic: "zigbee2mqtt/bathroom_remote"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        value_template: "{{ value_json.linkquality }}"
+        unit_of_measurement: "lqi"
+        enabled_by_default: false
+        icon: "mdi:signal"
+
+      - platform: "mqtt"
+        name: "frontdoor remote"
+        state_topic: "zigbee2mqtt/frontdoor_remote"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        value_template: "{{ value_json.battery }}"
+        unit_of_measurement: "%"
+        device_class: "battery"
+      - platform: "mqtt"
+        name: "frontdoor remote"
+        state_topic: "zigbee2mqtt/frontdoor_remote"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        value_template: "{{ value_json.linkquality }}"
+        unit_of_measurement: "lqi"
+        enabled_by_default: false
+        icon: "mdi:signal"
+
+      - platform: "mqtt"
+        name: "bedroom remote"
+        state_topic: "zigbee2mqtt/bedroom_remote"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        value_template: "{{ value_json.battery }}"
+        unit_of_measurement: "%"
+        device_class: "battery"
+      - platform: "mqtt"
+        name: "bedroom remote"
+        state_topic: "zigbee2mqtt/bedroom_remote"
+        availability_topic: "zigbee2mqtt/bridge/state"
+        value_template: "{{ value_json.linkquality }}"
+        unit_of_measurement: "lqi"
+        enabled_by_default: false
+        icon: "mdi:signal"
 
     ########## System Config
     homeassistant:
