@@ -184,6 +184,23 @@ configuration:
                  - livingroom_stateless
                  - livingroom_colorcycle
 
+      - alias: bedroom_stateless
+        id: bedroom_stateless
+        use_blueprint:
+          path: local/stateless_light_controller.yaml
+          input:
+            controller_name: zigbee2mqtt/bedroom_remote/action
+            target: light.bedroom
+
+      - alias: bedroom_remote
+        id: bedroom_remote
+        use_blueprint:
+          path: local/e1810tradfri.yaml
+          input:
+            mqtt_topic: zigbee2mqtt/bedroom_remote/action
+            up_down_input: Null
+            left_right_input: Null
+
 
       - alias: frontdoor_fluxed
         id: frontdoor_fluxed
