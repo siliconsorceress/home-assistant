@@ -1,5 +1,5 @@
 blueprint:
-  name: basic_light_controller
+  name: stateless_light_controller
   domain: automation
   input:
     target:

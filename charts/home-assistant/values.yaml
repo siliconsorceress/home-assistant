@@ -3,7 +3,7 @@ configuration:
     default_config:
 
     logger:
-      default: info
+      default: debug
 
     tts:
       - platform: google_translate

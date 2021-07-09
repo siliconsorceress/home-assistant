@@ -1,5 +1,5 @@
 blueprint:
-  name: basic_light_controller
+  name: fluxed_light_controller
   domain: automation
   input:
     brightness:
@@ -94,7 +94,10 @@ action:
             data:
               entity_id: "{{ target }}"
               transition: 0.5
+              {%- if brightness -%}
               brightness: "{{ states(brightness) | int }}"
+              {%- endif -%}
+              {%- if kelvin -%}
               kelvin: "{{ kelvin }}"
 
 
